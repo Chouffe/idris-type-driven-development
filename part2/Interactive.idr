@@ -132,9 +132,8 @@ readAndSave = readToBlank >>= save . unlines
 
 readVectFile : (filename : String) -> IO (n ** Vect n String)
 readVectFile filename = do
-  optContent <- readFile filename
-  case optContent of
-       Left err => do
-         putStrLn $ "Error> " ++ show err
-         pure (_ ** [])
-       Right content => pure (_ ** fromList (lines content))
+  Right content <- readFile filename
+    | Left err => do
+           putStrLn $ "Error> " ++ show err
+           pure (_ ** [])
+  pure (_ ** fromList (lines content))
