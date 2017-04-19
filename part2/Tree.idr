@@ -14,4 +14,3 @@ Foldable Tree where
     let rightFold = foldr f init right
         leftFold = foldr f rightFold left
     in f val leftFold
-
