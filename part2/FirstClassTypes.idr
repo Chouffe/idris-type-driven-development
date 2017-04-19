@@ -101,5 +101,9 @@ printf fmt = printfFmt _ ""
 Matrix : Nat -> Nat -> Type
 Matrix n m = Vect n (Vect m Double)
 
--- TODO:
-TupleVect : (k : Nat) -> ?TupleVectType
+TupleVect : (k : Nat) -> Type -> Type
+TupleVect Z _ = ()
+TupleVect (S k) type = (type, TupleVect k type)
+
+test : TupleVect 4 Nat
+test = (0, 0, 0, 0, ())
