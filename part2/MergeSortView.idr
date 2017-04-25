@@ -52,3 +52,5 @@ palindrome xs with (vList xs)
   palindrome [x] | VOne = True
   palindrome (x :: (ys ++ [y])) | (VCons rec) = x == y && palindrome ys | rec
 -- The VList view allows to traverse a list in linear time, processing the first and last elements simultaneously and recursing on the middle of the list
+
+-- One use of views is to hide the representation of data in a module while still allowing case splitting on a view of that data
