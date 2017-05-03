@@ -4,6 +4,8 @@ module ArithCmdDo
 data Command : Type -> Type where
   PutStr : String -> Command ()
   GetLine : Command String
+  ReadFile : String -> Command (Either FileError String)
+  WriteFile : String -> String -> Command (Either FileError ())
 
   Pure : ty -> Command ty
   Bind : Command a -> (a -> Command b) -> Command b
@@ -15,6 +17,8 @@ data Input = Answer Int
 runCommand : Command a -> IO a
 runCommand (PutStr x) = putStr x
 runCommand GetLine = getLine
+runCommand (ReadFile filepath) = readFile filepath
+runCommand (WriteFile filepath contents) = writeFile filepath contents
 runCommand (Pure x) = pure x
 runCommand (Bind c f) = do
   result <- runCommand c
@@ -62,3 +66,50 @@ mutual
                              then correct ns score
                              else wrong ns (n1 * n2) score
          QuitCmd => Quit score
+
+-- Exercises
+
+-- Implement a Shell
+
+data ShellInput = Cat String
+                | Copy String String
+                | Exit
+
+namespace ShellIODo
+  data ShellIO : Type -> Type where
+       Do : Command a -> (a -> Inf (ShellIO b)) -> ShellIO b
+       Quit : a -> ShellIO a
+
+  (>>=) : Command a -> (a -> Inf (ShellIO b)) -> ShellIO b
+  (>>=) = Do
+
+-- TODO: make it a maybe shellInput
+readShellInput : (prompt : String) -> Command ShellInput
+readShellInput prompt = do
+  input <- GetLine
+  if input == "exit"
+     then Pure Exit
+     else case words input of
+               "cat"::filepath::_ => Pure $ Cat filepath
+               "copy"::source::destination::_ => Pure (Copy source destination)
+
+
+shell : (prompt : String) -> ShellIO ()
+shell prompt = do
+  input <- readShellInput prompt
+  case input of
+       (Cat filepath) => do
+         Right content <- ReadFile filepath
+              | Left error => do PutStr ("Error: " ++ show error)
+                                 shell prompt
+         PutStr content
+         shell prompt
+       (Copy source destination) => do
+         Right content <- ReadFile source
+              | Left error => do PutStr ("Error: " ++ show error)
+                                 shell prompt
+         Right result <- WriteFile content destination
+              | Left error =>  do PutStr ("Error: " ++ show error)
+                                  shell prompt
+         shell prompt
+       Exit => Quit ()
