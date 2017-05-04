@@ -10,3 +10,11 @@ increase k = do
 
 -- get : MonadState stateType m => m stateType
 -- put : MonadState stateType m => stateType -> m ()
+
+update : (stateType -> stateType) -> State stateType ()
+update f = do
+  st <- get
+  put $ f st
+
+increase2 : Nat -> State Nat ()
+increase2 k = update (+k)
