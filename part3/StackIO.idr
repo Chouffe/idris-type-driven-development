@@ -52,25 +52,114 @@ run Dry xs x = pure ()
 
 data StackInput = Number Integer
                 | Add
+                | Subtract
+                | Multiply
+                | Negate
+                | Discard
+                | Duplicate
 
 parseInput : String -> Maybe StackInput
 parseInput "" = Nothing
 parseInput "add" = Just Add
+parseInput "subtract" = Just Subtract
+parseInput "multiply" = Just Multiply
+parseInput "negate" = Just Negate
+parseInput "discard" = Just Discard
+parseInput "duplicate" = Just Duplicate
 parseInput x = if all isDigit (unpack x)
                   then Just $ Number $ cast x
                   else Nothing
+
+doAdd : StackCmd () (S (S height)) (S height)
+doAdd = do
+  n1 <- Pop
+  n2 <- Pop
+  Push $ n1 + n2
+
+doSubtract : StackCmd () (S (S height)) (S height)
+doSubtract = do
+  n1 <- Pop
+  n2 <- Pop
+  Push $ n1 - n2
+
+doMultiply : StackCmd () (S (S height)) (S height)
+doMultiply = do
+  n1 <- Pop
+  n2 <- Pop
+  Push $ n1 * n2
+
+doNegate : StackCmd () (S height) (S height)
+doNegate = do
+  n <- Pop
+  Push $ 0 - n
+
+doDiscard : StackCmd Integer (S height) height
+doDiscard = do
+  n <- Pop
+  PutStr $ "Discarded " ++ show n
+  Pure n
+
+doDuplicate : StackCmd () (S height) (S (S height))
+doDuplicate = do
+  n <- Top
+  Push n
 
 mutual
   total
   tryAdd : StackIO height
   tryAdd {height = S (S k)} = do
-    n1 <- Pop
-    n2 <- Pop
-    Push $ n1 + n2
-    PutStr (show (n1 * n2))
+    doAdd
+    result <- Top
+    PutStr $ show result
     stackCalc
   tryAdd {height = _} = do
     PutStr "Fewer than 2 items on the stack\n"
+    stackCalc
+
+  trySubtract : StackIO height
+  trySubtract {height = S (S k)} = do
+    doSubtract
+    result <- Top
+    PutStr $ show result
+    stackCalc
+  trySubtract {height = _} = do
+    PutStr "Fewer than 2 items on the stack\n"
+    stackCalc
+
+  tryMultiply : StackIO height
+  tryMultiply {height = S (S k)} = do
+    doMultiply
+    result <- Top
+    PutStr $ show result
+    stackCalc
+  tryMultiply {height = _} = do
+    PutStr "Fewer than 2 items on the stack\n"
+    stackCalc
+
+  tryNegate : StackIO height
+  tryNegate {height = (S k)} = do
+    doNegate
+    result <- Top
+    PutStr $ show result
+    stackCalc
+  tryNegate {height = _} = do
+    PutStr "Fewer than 1 item on the stack\n"
+    stackCalc
+
+  tryDiscard : StackIO height
+  tryDiscard {height = (S k)} = do
+    doDiscard
+    stackCalc
+  tryDiscard {height = _} = do
+    PutStr "Fewer than 1 item on the stack\n"
+    stackCalc
+
+  tryDuplicate : StackIO height
+  tryDuplicate {height = (S k)} = do
+    doDuplicate
+    stackCalc
+  tryDuplicate {height = _} = do
+    PutStr "Fewer than 1 item on the stack\n"
     stackCalc
 
   total
@@ -81,9 +170,14 @@ mutual
     case parseInput input of
          Nothing => do PutStr "Invalid Input\n"
                        stackCalc
-         (Just (Number x)) => do Push x
-                                 stackCalc
-         (Just Add) => do tryAdd
+         Just (Number x) => do Push x
+                               stackCalc
+         Just Add => tryAdd
+         Just Subtract => trySubtract
+         Just Multiply => tryMultiply
+         Just Negate => tryNegate
+         Just Discard => tryDiscard
+         Just Duplicate => tryDuplicate
 
 main : IO ()
 main = run forever [] stackCalc
