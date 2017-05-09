@@ -10,13 +10,19 @@ data ATMState = Ready         -- waiting for a card to be inserted
               | CardInserted  -- card inside the ATM be the system has not yet checked a PIN entry against the card
               | Session       -- card inside the ATM, the user has entered a valid PIN for the card
 
+-- Predicate on ATMState (when the machine has a card inserted)
+data HasCard : ATMState -> Type where
+  HasCI : HasCard CardInserted
+  HasSession : HasCard Session
+
 data PINCheck = CorrectPIN
               | IncorrectPIN
 
 data ATMCmd : (ty : Type) -> ATMState -> (ty -> ATMState) -> Type where
   InsertCard : ATMCmd () Ready (const CardInserted)
-  -- TODO: Isnt quite right because a card can be ejected when there is no card in the machine...
-  EjectCard : ATMCmd () state (const Ready)
+  -- auto is used for the auto predicate on state
+  -- Idris will automatically perform a search through the data construcors of HasCard
+  EjectCard : {auto prf : HasCard state} -> ATMCmd () state (const Ready)
   GetPIN : ATMCmd PIN CardInserted (const CardInserted)
   -- Only move to the Session state if the PIN is correct
   CheckPIN : PIN -> ATMCmd PINCheck CardInserted (\res => case res of
@@ -73,3 +79,39 @@ runATM (Pure res) = pure res
 runATM (x >>= f) = do
   x' <- runATM x
   runATM (f x')
+
+-- This code wont compile because none of the HasCard data constructors are valid
+-- badATM : ATMCmd () Ready (const Ready)
+-- badATM = EjectCard
+
+-- Exercises
+
+namespace Exercise
+  data Access = LoggedOut | LoggedIn
+
+  data PwdCheck = Correct | Incorrect
+
+  data ShellCmd : (ty : Type) -> Access -> (ty -> Access) -> Type where
+    Password : String -> ShellCmd PwdCheck LoggedOut (\res => case res of
+                                                                   Correct => LoggedIn
+                                                                   Incorrect => LoggedOut)
+
+    Logout : ShellCmd () LoggedIn (const LoggedOut)
+    GetSecret : ShellCmd String LoggedIn (const LoggedIn)
+
+    PutStr : String -> ShellCmd () state (const state)
+    Pure : (res : ty) -> ShellCmd ty (stateFn res) stateFn
+    (>>=) : ShellCmd a state1 state2Fn -> ((res : a) -> ShellCmd b (state2Fn res) state3Fn) -> ShellCmd b state1 state3Fn
+
+session : ShellCmd () LoggedOut (const LoggedOut)
+session = do Correct <- Password "wurzel" | Incorrect => PutStr "Wrong Password"
+             msg <- GetSecret
+             PutStr $ "Secret code: " ++ show msg ++ "\n"
+             Logout
+
+-- Thi does not compile
+-- sessionBad : ShellCmd () LoggedOut (const LoggedOut)
+-- sessionBad = do Password "wurzel"
+--                 msg <- GetSecret
+--                 PutStr ("Secret code: " ++ show msg ++ "\n")
+--                 Logout
